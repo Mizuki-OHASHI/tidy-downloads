@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:tidy-downloads}",
+      "name": "Debug tidy-downloads",
+      "target": "tidy-downloads",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug tidy-downloads"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:tidy-downloads}",
+      "name": "Release tidy-downloads",
+      "target": "tidy-downloads",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release tidy-downloads"
+    }
+  ]
+}

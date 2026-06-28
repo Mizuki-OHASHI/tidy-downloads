@@ -16,11 +16,28 @@ report/
 - **Safety**: it only acts when the base `name.pdf` already exists, so a legitimately-named `report-2.pdf` is never touched.
 - Every move/trash is recorded in an append-only **JSONL ledger**, and nothing is ever hard-deleted (deletes go to `~/.Trash`).
 
-## Build
+## Build & install
 
 ```sh
-swift build -c release
-# binary at .build/release/tidy-downloads
+swift build -c release                           # optimized, self-contained binary
+cp .build/release/tidy-downloads ~/.local/bin/   # put it on your PATH
+```
+
+The binary is self-contained (Rainbow is linked in; the Swift runtime ships with
+macOS), so `.build/` can be removed afterward. With `~/.local/bin` on your PATH,
+`tidy-downloads` then works from anywhere.
+
+To run it at login as a background daemon, run `install` **from the copied
+binary** (so the LaunchAgent records the stable path, not `.build/...`):
+
+```sh
+tidy-downloads install
+```
+
+Update later with:
+
+```sh
+swift build -c release && cp .build/release/tidy-downloads ~/.local/bin/ && tidy-downloads install
 ```
 
 ## Usage

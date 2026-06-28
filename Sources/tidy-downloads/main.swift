@@ -44,11 +44,13 @@ default:
 
 /// Process whatever already exists in the watched directory, then exit.
 func organizeOnce(dryRun: Bool) {
+    configureColors(disabled: noColorRequested(flags))
     let config = Config.loadOrCreate()
     let ledger = Ledger(url: AppPaths.ledgerFile)
     let resolver = CollisionResolver(config: config, ledger: ledger, dryRun: dryRun)
-    log("\(dryRun ? "dry-run: " : "")organizing \(config.watchedDirectory)\(dryRun ? " — no files will be changed" : "")")
-    DirectoryScanner.scan(config: config, resolver: resolver, verbose: true)
+    print(Present.banner(dir: config.watchedDirectory, dryRun: dryRun))
+    let tally = DirectoryScanner.scan(config: config, resolver: resolver)
+    print(Present.footer(versioned: tally.versioned, deduped: tally.deduped, dryRun: dryRun))
 }
 
 // MARK: - Daemon
@@ -69,7 +71,7 @@ final class Daemon {
         log("watching \(dir.path) for [\(config.extensions.joined(separator: ", "))]\(dryRun ? " (dry-run)" : "")")
 
         let watcher = Watcher(dir: dir, debounce: config.debounceSeconds) {
-            DirectoryScanner.scan(config: config, resolver: resolver, verbose: false)
+            _ = DirectoryScanner.scan(config: config, resolver: resolver)
         }
         do {
             try watcher.start()

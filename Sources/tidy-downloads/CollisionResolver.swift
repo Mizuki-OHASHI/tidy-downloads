@@ -1,5 +1,12 @@
 import Foundation
 
+/// Outcome of processing one candidate file.
+enum ActionResult {
+    case none       // not a collision we act on
+    case versioned  // archived the old top, promoted the new file
+    case deduped    // identical re-download; old top moved to Trash
+}
+
 /// The core logic: decide what to do with a single candidate file.
 final class CollisionResolver {
     private let config: Config
@@ -31,24 +38,23 @@ final class CollisionResolver {
         return nil
     }
 
-    /// Process one settled file. Returns true if it was (or would be) acted on.
-    /// No-op unless it matches a collision pattern AND the corresponding base
-    /// file actually exists in the same directory.
+    /// Process one settled file. No-op unless it matches a collision pattern AND
+    /// the corresponding base file actually exists in the same directory.
     @discardableResult
-    func process(_ fileURL: URL) -> Bool {
+    func process(_ fileURL: URL) -> ActionResult {
         let ext = fileURL.pathExtension.lowercased()
-        guard config.extensions.contains(ext) else { return false }
+        guard config.extensions.contains(ext) else { return .none }
 
         let stem = fileURL.deletingPathExtension().lastPathComponent
-        guard let base = baseStem(for: stem) else { return false }
+        guard let base = baseStem(for: stem) else { return .none }
 
         let dir = fileURL.deletingLastPathComponent()
         let topURL = dir.appendingPathComponent("\(base).\(ext)")
-        guard topURL.path != fileURL.path else { return false }
+        guard topURL.path != fileURL.path else { return .none }
 
         // Safety: only treat this as a collision when the base file is really
         // there. Otherwise "report-2.pdf" might just be a legitimate filename.
-        guard fm.fileExists(atPath: topURL.path) else { return false }
+        guard fm.fileExists(atPath: topURL.path) else { return .none }
 
         do {
             let incomingHash = try FileHasher.sha256(of: fileURL)
@@ -57,8 +63,8 @@ final class CollisionResolver {
             if incomingHash == topHash {
                 // Same content as the current top -> redundant re-download.
                 if dryRun {
-                    log("[dry-run] dedup: \(fileURL.lastPathComponent) is identical to \(topURL.lastPathComponent) — would trash old top, keep newest as \(topURL.lastPathComponent)")
-                    return true
+                    print(Present.action(dedup: true, top: topURL, incoming: fileURL, dryRun: true))
+                    return .deduped
                 }
                 let trashed = try Trash.move(topURL)
                 do {
@@ -72,16 +78,16 @@ final class CollisionResolver {
                 ledger.record(action: "dedup-trash", from: topURL, to: trashed,
                               hash: topHash, trashPath: trashed)
                 ledger.record(action: "promote", from: fileURL, to: topURL, hash: incomingHash)
-                log("dedup \(fileURL.lastPathComponent): trashed old top, kept newest as \(topURL.lastPathComponent)")
-                return true
+                print(Present.action(dedup: true, top: topURL, incoming: fileURL, dryRun: false))
+                return .deduped
             } else {
                 // New version: archive the current top, promote the incoming file.
                 let folder = dir.appendingPathComponent(base, isDirectory: true)
                 let n = nextIndex(in: folder, base: base, ext: ext)
                 let archived = folder.appendingPathComponent("\(base)_\(n).\(ext)")
                 if dryRun {
-                    log("[dry-run] version: would archive \(topURL.lastPathComponent) -> \(base)/\(archived.lastPathComponent), then promote \(fileURL.lastPathComponent) -> \(topURL.lastPathComponent)")
-                    return true
+                    print(Present.action(dedup: false, top: topURL, incoming: fileURL, dryRun: true))
+                    return .versioned
                 }
                 try ensureFolder(folder)
                 try fm.moveItem(at: topURL, to: archived)
@@ -95,12 +101,12 @@ final class CollisionResolver {
                 // Record only after both filesystem steps succeed (keeps the ledger consistent).
                 ledger.record(action: "archive", from: topURL, to: archived, hash: topHash)
                 ledger.record(action: "promote", from: fileURL, to: topURL, hash: incomingHash)
-                log("versioned \(fileURL.lastPathComponent) -> \(topURL.lastPathComponent), archived old as \(base)/\(archived.lastPathComponent)")
-                return true
+                print(Present.action(dedup: false, top: topURL, incoming: fileURL, dryRun: false))
+                return .versioned
             }
         } catch {
             logError("error processing \(fileURL.lastPathComponent): \(error)")
-            return false
+            return .none
         }
     }
 

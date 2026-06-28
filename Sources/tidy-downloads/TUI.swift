@@ -255,3 +255,47 @@ func abbreviateHome(_ path: String) -> String {
     let home = FileManager.default.homeDirectoryForCurrentUser.path
     return path.hasPrefix(home) ? "~" + path.dropFirst(home.count) : path
 }
+
+// MARK: - organize / run presentation
+
+/// Pretty, aligned, colored output for `organize` and `run` (and their dry-runs).
+enum Present {
+    static let nameCol = 34
+
+    static func banner(dir: String, dryRun: Bool) -> String {
+        let head = (dryRun ? "tidy-downloads · organize (dry-run)" : "tidy-downloads · organize").cyan.bold
+        let sub = dryRun ? "  \(abbreviateHome(dir))  —  nothing will change"
+                         : "  \(abbreviateHome(dir))"
+        return "\n" + head + "\n" + sub.dim
+    }
+
+    /// One aligned line per acted-on file:
+    ///   • version  report.pdf                       ← report (1).pdf   prev → report/
+    static func action(dedup: Bool, top: URL, incoming: URL, dryRun: Bool) -> String {
+        let mark = dryRun ? "•".yellow : "✓".green
+
+        let labelPlain = dedup ? "dedup" : "version"
+        let labelColored = dedup ? labelPlain.red : labelPlain.blue
+        let labelCell = padTo(labelPlain, 7).replacingOccurrences(of: labelPlain, with: labelColored)
+
+        let namePlain = truncateTo(top.lastPathComponent, nameCol)
+        let nameCell = padTo(namePlain, nameCol).replacingOccurrences(of: namePlain, with: namePlain.bold)
+
+        let base = top.deletingPathExtension().lastPathComponent
+        let tail = dedup ? "← \(incoming.lastPathComponent)   old → Trash"
+                         : "← \(incoming.lastPathComponent)   prev → \(base)/"
+        let used = 2 + 2 + 8 + nameCol + 1
+        let tailCut = truncateTo(tail, max(12, terminalWidth() - used))
+
+        return "  \(mark) \(labelCell) \(nameCell) " + tailCut.dim
+    }
+
+    static func footer(versioned: Int, deduped: Int, dryRun: Bool) -> String {
+        let total = versioned + deduped
+        if total == 0 { return "\n" + "  nothing to organize".dim + "\n" }
+        let verb = dryRun ? "would be organized" : "organized"
+        let head = "  \(total) \(verb)".green
+        let detail = "  ·  \(versioned) versioned · \(deduped) deduped".dim
+        return "\n" + head + detail + "\n"
+    }
+}

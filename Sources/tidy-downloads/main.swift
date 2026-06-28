@@ -27,6 +27,10 @@ case "log":
     let limit = flags.contains("--all") ? nil : (rawArgs.compactMap { Int($0) }.filter { $0 > 0 }.first ?? 50)
     LogView.render(limit: limit)
 
+case "summary":
+    configureColors(disabled: noColorRequested(flags))
+    SummaryView.render()
+
 case "config":
     _ = Config.loadOrCreate()   // create the default if missing, then print its path
     print(AppPaths.configFile.path)
@@ -112,6 +116,7 @@ func printUsage() {
       uninstall   Stop & remove the LaunchAgent.
       status      Show a status dashboard (daemon, watched dir, history).
       log [N]     Show recent activity (default 50; use --all for everything).
+      summary     Show version groups: the latest file and its archived versions.
       config      Print the path to the config file.
       help        Show this help.
 

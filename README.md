@@ -50,6 +50,7 @@ tidy-downloads organize -n    # same, dry-run
 tidy-downloads install        # install & start the background LaunchAgent (runs at login)
 tidy-downloads uninstall      # stop & remove it
 tidy-downloads status         # status dashboard
+tidy-downloads summary        # version groups: the latest file and its archived versions
 tidy-downloads log [N]        # recent activity (default 50; --all for everything)
 tidy-downloads config         # path to the config file
 ```

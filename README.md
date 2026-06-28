@@ -34,10 +34,14 @@ binary** (so the LaunchAgent records the stable path, not `.build/...`):
 tidy-downloads install
 ```
 
-Update later with:
+Update later — replace it as a **fresh file** (don't overwrite the running
+daemon's binary in place, or macOS code-signing will SIGKILL the new process):
 
 ```sh
-swift build -c release && cp .build/release/tidy-downloads ~/.local/bin/ && tidy-downloads install
+swift build -c release \
+  && rm -f ~/.local/bin/tidy-downloads \
+  && cp .build/release/tidy-downloads ~/.local/bin/ \
+  && tidy-downloads install
 ```
 
 ## Usage
@@ -120,3 +124,7 @@ a natural next step.
 - **Very long names** (> 255 bytes) and **symlinked** downloads are not
   special-cased; such a move may fail and is logged to the daemon error log
   rather than acting silently.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
